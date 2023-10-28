@@ -1,6 +1,8 @@
 from tensorflow import keras
 import data_preprocessing
 import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow import image
 
 # Dependencies
 Sequential = keras.models.Sequential
@@ -11,7 +13,7 @@ Reshape = keras.layers.Reshape
 TimeDistributed = keras.layers.TimeDistributed
 Dense = keras.layers.Dense
 
-should_load = False
+should_load = True
 
 train_anims, target_anims, test_anims = data_preprocessing.preprocess()
 
@@ -43,18 +45,37 @@ else:
     pixelGenModel.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
     pixelGenModel.summary()
     
-    pixelGenModel.fit(x=train_anims, y=target_anims, batch_size=8, epochs=5)
+    pixelGenModel.fit(x=train_anims, y=target_anims, batch_size=8, epochs=10)
     pixelGenModel.save('pixelGenV1.h5')
+
+def display_frame(frame):
+    plt.imshow(frame.astype('uint8'))
+    plt.axis('off')
+    plt.show()
 
 # --- TEST --- 
 
 test_anim = test_anims[0]
+display_frame(test_anim[0])
 
-generated_sequence = np.expand_dims(test_anim[0], axis=1)  
+initial_frame = np.expand_dims(test_anim[0], axis=0)
+initial_sequence = np.tile(initial_frame, (15, 1, 1, 1))
+initial_sequence = np.expand_dims(initial_sequence, axis=0)
 
-for i in range(len(test_anim)):
-    next_frame = pixelGenModel.predict(generated_sequence)
-    next_frame = next_frame[:, -1:, :, :, :]
-    generated_sequence = np.concatenate([generated_sequence, next_frame], axis=1)
+# Generate the next 14 frames
+for i in range(14):
+    next_frame = pixelGenModel.predict(initial_sequence)
+    
+    for f in range(15):
+        display_frame(next_frame[0][f])
+    
+    # Take the last frame from the predicted sequence
+    next_frame = next_frame[0][-1]
+    
+    # Roll the frames in the initial_sequence to the left by one frame
+    initial_sequence = np.roll(initial_sequence, shift=-1, axis=1)
+    
+    # Insert the new frame at the end of the initial_sequence
+    initial_sequence[:, -1] = next_frame
 
 
